@@ -1,0 +1,807 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>模型优先级</title>
+    <script src="/api/plugin/page/bridge-sdk.js"></script>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #f6f7fa;
+        --panel: #ffffff;
+        --panel-2: #fbfcfe;
+        --text: #1a2230;
+        --muted: #6b7688;
+        --line: #e0e5ed;
+        --line-strong: #cbd3df;
+        --blue: #2f6bdd;
+        --blue-soft: #eaf1ff;
+        --green: #17845e;
+        --green-soft: #e6f6ee;
+        --amber: #a06a00;
+        --amber-soft: #fdf3d9;
+        --red: #c93b3b;
+        --red-soft: #fdeaea;
+        --shadow: 0 1px 2px rgba(20, 32, 52, 0.06);
+      }
+      html[data-theme="dark"] {
+        color-scheme: dark;
+        --bg: #14171c;
+        --panel: #1b1f26;
+        --panel-2: #20252d;
+        --text: #e7ebf2;
+        --muted: #9aa5b6;
+        --line: #2b323c;
+        --line-strong: #3a4351;
+        --blue: #6f9bf0;
+        --blue-soft: #23314a;
+        --green: #4ec596;
+        --green-soft: #1c3329;
+        --amber: #e0b154;
+        --amber-soft: #352c18;
+        --red: #f08080;
+        --red-soft: #3a2021;
+        --shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+      }
+      * {
+        box-sizing: border-box;
+      }
+      /* .pill / .banner 自带 display，会压过 UA 的 [hidden] 规则 */
+      [hidden] {
+        display: none !important;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font:
+          14px/1.55 Inter,
+          ui-sans-serif,
+          system-ui,
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          "PingFang SC",
+          "Microsoft YaHei",
+          sans-serif;
+      }
+      button,
+      select {
+        font: inherit;
+        color: inherit;
+      }
+      .app {
+        max-width: 1040px;
+        margin: 0 auto;
+        padding: 24px 20px 40px;
+      }
+      .head {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 16px;
+        align-items: flex-start;
+        justify-content: space-between;
+        margin-bottom: 18px;
+      }
+      h1 {
+        margin: 0 0 4px;
+        font-size: 19px;
+        font-weight: 650;
+        letter-spacing: 0.2px;
+      }
+      .sub {
+        margin: 0;
+        color: var(--muted);
+        font-size: 13px;
+        max-width: 62ch;
+      }
+      .actions {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .btn {
+        border: 1px solid var(--line-strong);
+        background: var(--panel);
+        border-radius: 8px;
+        padding: 7px 14px;
+        cursor: pointer;
+        box-shadow: var(--shadow);
+        transition: 0.15s ease;
+        white-space: nowrap;
+      }
+      .btn:hover:not(:disabled) {
+        border-color: var(--blue);
+        color: var(--blue);
+      }
+      .btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+      .btn.primary {
+        background: var(--blue);
+        border-color: var(--blue);
+        color: #fff;
+        font-weight: 600;
+      }
+      .btn.primary:hover:not(:disabled) {
+        filter: brightness(1.07);
+        color: #fff;
+      }
+      .btn.ghost {
+        background: transparent;
+        box-shadow: none;
+      }
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 3px 9px;
+        border-radius: 999px;
+        font-size: 12px;
+        border: 1px solid transparent;
+      }
+      .pill-warn {
+        background: var(--amber-soft);
+        color: var(--amber);
+        border-color: color-mix(in srgb, var(--amber) 30%, transparent);
+      }
+      .pill-ok {
+        background: var(--green-soft);
+        color: var(--green);
+        border-color: color-mix(in srgb, var(--green) 30%, transparent);
+      }
+      .banner {
+        border-radius: 10px;
+        padding: 10px 14px;
+        margin-bottom: 14px;
+        font-size: 13px;
+        border: 1px solid transparent;
+        white-space: pre-wrap;
+      }
+      .banner.error {
+        background: var(--red-soft);
+        color: var(--red);
+        border-color: color-mix(in srgb, var(--red) 30%, transparent);
+      }
+      .banner.warn {
+        background: var(--amber-soft);
+        color: var(--amber);
+        border-color: color-mix(in srgb, var(--amber) 28%, transparent);
+      }
+      .cards {
+        display: grid;
+        gap: 14px;
+      }
+      .card {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 16px 16px 12px;
+        box-shadow: var(--shadow);
+      }
+      .card-head {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        align-items: baseline;
+        justify-content: space-between;
+        margin-bottom: 2px;
+      }
+      .card-title {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 15px;
+        font-weight: 640;
+      }
+      .tag {
+        font-size: 11px;
+        font-weight: 500;
+        color: var(--muted);
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        padding: 1px 6px;
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      }
+      .card-desc {
+        margin: 0 0 12px;
+        color: var(--muted);
+        font-size: 12.5px;
+      }
+      .picker {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 12px;
+      }
+      .picker select {
+        flex: 1;
+        min-width: 0;
+        background: var(--panel-2);
+        border: 1px solid var(--line-strong);
+        border-radius: 8px;
+        padding: 7px 10px;
+        cursor: pointer;
+      }
+      .picker select:focus-visible {
+        outline: 2px solid var(--blue);
+        outline-offset: 1px;
+      }
+      ol.list {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: grid;
+        gap: 6px;
+        min-height: 8px;
+      }
+      .row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        background: var(--panel-2);
+        border: 1px solid var(--line);
+        border-radius: 9px;
+        padding: 7px 10px;
+        cursor: grab;
+      }
+      .row.dragging {
+        opacity: 0.45;
+      }
+      .row.drop-target {
+        border-color: var(--blue);
+        box-shadow: 0 0 0 2px var(--blue-soft);
+      }
+      .rank {
+        flex: none;
+        width: 22px;
+        height: 22px;
+        border-radius: 6px;
+        background: var(--blue-soft);
+        color: var(--blue);
+        font-size: 12px;
+        font-weight: 650;
+        display: grid;
+        place-items: center;
+      }
+      .grip {
+        flex: none;
+        color: var(--muted);
+        letter-spacing: -2px;
+        font-size: 13px;
+        user-select: none;
+      }
+      .name {
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 13px;
+      }
+      .badges {
+        display: flex;
+        flex: none;
+        gap: 4px;
+      }
+      .badge {
+        font-size: 11px;
+        padding: 1px 6px;
+        border-radius: 5px;
+        border: 1px solid transparent;
+        white-space: nowrap;
+      }
+      .badge.ok {
+        background: var(--green-soft);
+        color: var(--green);
+      }
+      .badge.warn {
+        background: var(--amber-soft);
+        color: var(--amber);
+      }
+      .badge.info {
+        background: var(--blue-soft);
+        color: var(--blue);
+      }
+      .badge.mute {
+        background: transparent;
+        color: var(--muted);
+        border-color: var(--line);
+      }
+      .row-actions {
+        display: flex;
+        flex: none;
+        gap: 2px;
+      }
+      .icon {
+        width: 26px;
+        height: 26px;
+        border-radius: 6px;
+        border: 1px solid transparent;
+        background: transparent;
+        cursor: pointer;
+        color: var(--muted);
+        display: grid;
+        place-items: center;
+        line-height: 1;
+      }
+      .icon:hover:not(:disabled) {
+        background: var(--panel);
+        border-color: var(--line-strong);
+        color: var(--text);
+      }
+      .icon:disabled {
+        opacity: 0.3;
+        cursor: not-allowed;
+      }
+      .icon.danger:hover {
+        color: var(--red);
+        border-color: color-mix(in srgb, var(--red) 40%, transparent);
+      }
+      .empty {
+        color: var(--muted);
+        font-size: 12.5px;
+        padding: 10px 12px;
+        border: 1px dashed var(--line-strong);
+        border-radius: 9px;
+        background: transparent;
+      }
+      .foot {
+        margin-top: 16px;
+        font-size: 12px;
+        color: var(--muted);
+      }
+      .muted {
+        color: var(--muted);
+      }
+      .toast {
+        position: fixed;
+        left: 50%;
+        bottom: 28px;
+        transform: translateX(-50%) translateY(8px);
+        background: var(--panel);
+        border: 1px solid var(--line-strong);
+        border-radius: 10px;
+        padding: 9px 16px;
+        box-shadow: 0 6px 24px rgba(10, 20, 40, 0.16);
+        font-size: 13px;
+        opacity: 0;
+        pointer-events: none;
+        transition: 0.18s ease;
+        max-width: 80vw;
+      }
+      .toast.show {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+      }
+      .toast.error {
+        border-color: color-mix(in srgb, var(--red) 45%, transparent);
+        color: var(--red);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app">
+      <header class="head">
+        <div>
+          <h1>模型优先级</h1>
+          <p class="sub">
+            三份列表各自独立生效：消息带音频走音频列表，否则带图片走图像列表，纯文本走文本列表。
+            拖动或用箭头调整顺序，<strong>越靠前越先用</strong>；报错时自动往后换。保存后立即生效，无需重启。
+          </p>
+        </div>
+        <div class="actions">
+          <span id="dirty" class="pill pill-warn" hidden>有未保存的修改</span>
+          <button id="reload" class="btn ghost" type="button">重新读取</button>
+          <button id="save" class="btn primary" type="button">保存</button>
+        </div>
+      </header>
+
+      <div id="bannerError" class="banner error" hidden></div>
+      <div id="bannerWarn" class="banner warn" hidden></div>
+
+      <div id="cards" class="cards"></div>
+
+      <p id="metaLine" class="foot"></p>
+    </div>
+
+    <div id="toast" class="toast"></div>
+
+    <script>
+      const api = window.AstrBotPluginPage;
+      const MODES = ["text", "image", "audio"];
+      const MODE_HINT = {
+        text: "纯文本请求。列表留空 = 沿用 AstrBot「主模型」。",
+        image: "消息里带图片时使用。只放能看图的模型。",
+        audio: "消息里带语音/音频时使用。列表留空 = 不干预。",
+      };
+      const MODE_ICON = { text: "T", image: "I", audio: "A" };
+
+      const state = {
+        config: {},
+        draft: {},
+        options: [],
+        optionMap: new Map(),
+        meta: {},
+        picked: {},
+        saving: false,
+      };
+
+      const el = {
+        cards: document.getElementById("cards"),
+        save: document.getElementById("save"),
+        reload: document.getElementById("reload"),
+        dirty: document.getElementById("dirty"),
+        bannerError: document.getElementById("bannerError"),
+        bannerWarn: document.getElementById("bannerWarn"),
+        metaLine: document.getElementById("metaLine"),
+        toast: document.getElementById("toast"),
+      };
+
+      let toastTimer = null;
+      function toast(message, isError) {
+        el.toast.textContent = message;
+        el.toast.classList.toggle("error", Boolean(isError));
+        el.toast.classList.add("show");
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => el.toast.classList.remove("show"), isError ? 5200 : 2600);
+      }
+
+      function setBannerNode(node, messages) {
+        const list = (messages || []).filter(Boolean);
+        if (!list.length) {
+          node.hidden = true;
+          node.textContent = "";
+          return;
+        }
+        node.hidden = false;
+        node.textContent = list.map((item) => "• " + item).join("\n");
+      }
+
+      function setBanner(errors, warnings) {
+        setBannerNode(el.bannerError, errors);
+        setBannerNode(el.bannerWarn, warnings);
+      }
+
+      function isDirty() {
+        return JSON.stringify(state.config) !== JSON.stringify(state.draft);
+      }
+
+      function esc(value) {
+        return String(value).replace(
+          /[&<>"']/g,
+          (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[ch],
+        );
+      }
+
+      function syncDirty() {
+        const dirty = isDirty();
+        el.dirty.hidden = !dirty;
+        el.save.disabled = state.saving || !dirty;
+      }
+
+      function supportsMode(option, mode) {
+        return Boolean(option && option.supports && option.supports[mode]);
+      }
+
+      function capabilityLabel(option) {
+        if (!option.declared) return "未声明模态";
+        const mods = option.modalities || [];
+        if (mods.includes("text") && mods.includes("image") && mods.includes("audio")) return "全能";
+        return mods.join(" · ");
+      }
+
+      function buildRow(mode, key, pid, index, total) {
+        const option = state.optionMap.get(pid);
+        const row = document.createElement("li");
+        row.className = "row";
+        row.draggable = true;
+        row.dataset.mode = mode;
+        row.dataset.index = String(index);
+
+        const ok = supportsMode(option, mode);
+        const badges = [];
+        if (option) {
+          badges.push(
+            `<span class="badge ${ok ? "ok" : "warn"}">${ok ? "✓ " : "⚠ "}${esc(capabilityLabel(option))}</span>`,
+          );
+          if (option.cooling) {
+            badges.push(`<span class="badge info">冷却 ${Number(option.cooldown_left) || 0}s</span>`);
+          }
+        } else {
+          badges.push(`<span class="badge warn">未知模型</span>`);
+        }
+        if (state.meta.main_model === pid) {
+          badges.push(`<span class="badge mute">主模型</span>`);
+        }
+
+        row.innerHTML = `
+          <span class="grip" aria-hidden="true">⠿</span>
+          <span class="rank">${index + 1}</span>
+          <span class="name" title="${esc(pid)}">${esc(pid)}</span>
+          <span class="badges">${badges.join("")}</span>
+          <span class="row-actions">
+            <button class="icon" type="button" data-act="up" title="上移" ${index === 0 ? "disabled" : ""}>↑</button>
+            <button class="icon" type="button" data-act="down" title="下移" ${index === total - 1 ? "disabled" : ""}>↓</button>
+            <button class="icon danger" type="button" data-act="remove" title="移除">✕</button>
+          </span>
+        `;
+
+        row.querySelector('[data-act="up"]').addEventListener("click", (event) => {
+          event.stopPropagation();
+          moveModel(mode, index, index - 1);
+        });
+        row.querySelector('[data-act="down"]').addEventListener("click", (event) => {
+          event.stopPropagation();
+          moveModel(mode, index, index + 1);
+        });
+        row.querySelector('[data-act="remove"]').addEventListener("click", (event) => {
+          event.stopPropagation();
+          removeModel(mode, index);
+        });
+
+        row.addEventListener("dragstart", (event) => {
+          event.dataTransfer.effectAllowed = "move";
+          event.dataTransfer.setData("text/plain", `${mode}:${index}`);
+          row.classList.add("dragging");
+        });
+        row.addEventListener("dragend", () => {
+          row.classList.remove("dragging");
+          document
+            .querySelectorAll(".row.drop-target")
+            .forEach((node) => node.classList.remove("drop-target"));
+        });
+        row.addEventListener("dragover", (event) => {
+          if (!event.dataTransfer.types.includes("text/plain")) return;
+          event.preventDefault();
+          row.classList.add("drop-target");
+        });
+        row.addEventListener("dragleave", () => row.classList.remove("drop-target"));
+        row.addEventListener("drop", (event) => {
+          event.preventDefault();
+          row.classList.remove("drop-target");
+          const raw = event.dataTransfer.getData("text/plain");
+          const [fromMode, fromIndexRaw] = raw.split(":");
+          if (fromMode !== mode) return;
+          moveModel(mode, Number(fromIndexRaw), index);
+        });
+
+        return row;
+      }
+
+      function buildCard(mode, key, label) {
+        const card = document.createElement("section");
+        card.className = "card";
+
+        const head = document.createElement("div");
+        head.className = "card-head";
+        head.innerHTML = `
+          <div class="card-title">
+            <span class="rank">${esc(MODE_ICON[mode] || "?")}</span>
+            <span>${esc(label)}</span>
+            <span class="tag">${esc(key)}</span>
+          </div>
+          <span class="muted" style="font-size:12px">${(state.draft[key] || []).length} 个</span>
+        `;
+
+        const desc = document.createElement("p");
+        desc.className = "card-desc";
+        desc.textContent = MODE_HINT[mode];
+
+        const picker = document.createElement("div");
+        picker.className = "picker";
+        const select = document.createElement("select");
+        select.dataset.mode = mode;
+
+        const chosen = new Set(state.draft[key] || []);
+        const supported = state.options.filter((opt) => supportsMode(opt, mode) && !chosen.has(opt.id));
+        const others = state.options.filter((opt) => !supportsMode(opt, mode) && !chosen.has(opt.id));
+
+        const placeholder = document.createElement("option");
+        placeholder.value = "";
+        if (supported.length) {
+          placeholder.textContent = "选择要添加的模型…";
+        } else if (others.length) {
+          placeholder.textContent = `选择模型（以下均未声明支持${label}）`;
+        } else {
+          placeholder.textContent = "没有可添加的模型了";
+        }
+        select.appendChild(placeholder);
+
+        if (supported.length) {
+          const group = document.createElement("optgroup");
+          group.label = `支持${label}（推荐）`;
+          supported.forEach((opt) => group.appendChild(optionNode(opt, mode, false)));
+          select.appendChild(group);
+        }
+        if (others.length) {
+          const group = document.createElement("optgroup");
+          group.label = `未声明支持${label}（谨慎添加）`;
+          others.forEach((opt) => group.appendChild(optionNode(opt, mode, true)));
+          select.appendChild(group);
+        }
+        select.value = state.picked[mode] || "";
+        select.addEventListener("change", () => {
+          state.picked[mode] = select.value;
+          addButton.disabled = !select.value;
+        });
+
+        const addButton = document.createElement("button");
+        addButton.className = "btn";
+        addButton.type = "button";
+        addButton.textContent = "添加";
+        addButton.disabled = !select.value;
+        addButton.addEventListener("click", () => addModel(mode, select.value));
+
+        picker.appendChild(select);
+        picker.appendChild(addButton);
+
+        const list = document.createElement("ol");
+        list.className = "list";
+        const items = state.draft[key] || [];
+        if (!items.length) {
+          const empty = document.createElement("div");
+          empty.className = "empty";
+          empty.textContent =
+            mode === "text"
+              ? "留空：文本请求直接使用 AstrBot 设置里的主模型。"
+              : "留空：该类请求不做特殊处理，交给 AstrBot 原逻辑。";
+          list.appendChild(empty);
+        } else {
+          items.forEach((pid, index) => list.appendChild(buildRow(mode, key, pid, index, items.length)));
+        }
+
+        card.appendChild(head);
+        card.appendChild(desc);
+        card.appendChild(picker);
+        card.appendChild(list);
+        return card;
+      }
+
+      function optionNode(option, mode, warn) {
+        const node = document.createElement("option");
+        node.value = option.id;
+        const marks = [];
+        if (warn) marks.push("⚠");
+        if (option.cooling) marks.push(`[冷却 ${option.cooldown_left}s]`);
+        if (state.meta.main_model === option.id) marks.push("[主模型]");
+        node.textContent = `${marks.join(" ")}${marks.length ? " " : ""}${option.id}`;
+        return node;
+      }
+
+      function render() {
+        const modes = state.meta.modes && state.meta.modes.length
+          ? state.meta.modes
+          : MODES.map((mode) => ({
+              mode,
+              key: `${mode}_models`,
+              label: { text: "文本", image: "图像", audio: "音频" }[mode],
+            }));
+        el.cards.innerHTML = "";
+        modes.forEach((item) => el.cards.appendChild(buildCard(item.mode, item.key, item.label)));
+
+        const meta = state.meta;
+        const bits = [];
+        if (meta.strategy && meta.strategy !== "order") {
+          bits.push(
+            `⚠ 当前排序策略为 ${meta.strategy}，列表顺序不会生效，请到插件配置里把「列表排序策略」改成 order。`,
+          );
+        }
+        bits.push(`主模型：${meta.main_model || "未设置"}`);
+        if (meta.preferred) bits.push(`运行时偏好：${meta.preferred}（保存后会清除）`);
+        bits.push(`自动补位：${meta.auto_append_enabled ? "开" : "关"}`);
+        bits.push(`单次最多试 ${meta.max_chain} 个`);
+        el.metaLine.textContent = bits.join("　·　");
+
+        syncDirty();
+      }
+
+      function addModel(mode, pid) {
+        if (!pid) return;
+        const key = `${mode}_models`;
+        const items = state.draft[key] || (state.draft[key] = []);
+        if (items.includes(pid)) {
+          toast("这个模型已经在列表里了", true);
+          return;
+        }
+        items.push(pid);
+        state.picked[mode] = "";
+        const option = state.optionMap.get(pid);
+        if (!supportsMode(option, mode)) {
+          toast(`已添加 ${pid}，但它没有声明支持该类型，记得确认`, true);
+        } else {
+          toast(`已添加 ${pid}`);
+        }
+        render();
+      }
+
+      function removeModel(mode, index) {
+        const key = `${mode}_models`;
+        const items = state.draft[key] || [];
+        const [removed] = items.splice(index, 1);
+        if (removed) toast(`已移除 ${removed}`);
+        render();
+      }
+
+      function moveModel(mode, from, to) {
+        const key = `${mode}_models`;
+        const items = state.draft[key] || [];
+        if (to < 0 || to >= items.length || from === to) return;
+        const [moved] = items.splice(from, 1);
+        items.splice(to, 0, moved);
+        render();
+      }
+
+      async function load() {
+        setBanner([], []);
+        el.reload.disabled = true;
+        try {
+          const data = await api.apiGet("models");
+          state.config = data.config || {};
+          state.draft = JSON.parse(JSON.stringify(state.config));
+          state.options = data.options || [];
+          state.optionMap = new Map(state.options.map((opt) => [opt.id, opt]));
+          state.meta = data.meta || {};
+          state.picked = {};
+          render();
+          if (data.warnings && data.warnings.length) {
+            setBanner([], data.warnings);
+          }
+        } catch (error) {
+          setBanner([error && error.message ? error.message : String(error)], []);
+        } finally {
+          el.reload.disabled = false;
+        }
+      }
+
+      async function save() {
+        if (state.saving) return;
+        state.saving = true;
+        el.save.disabled = true;
+        el.save.textContent = "保存中…";
+        setBanner([], []);
+        try {
+          const data = await api.apiPost("models", state.draft);
+          state.config = data.config || {};
+          state.draft = JSON.parse(JSON.stringify(state.config));
+          state.options = data.options || state.options;
+          state.optionMap = new Map(state.options.map((opt) => [opt.id, opt]));
+          state.meta = data.meta || state.meta;
+          render();
+          const warnings = (data.warnings || []).filter(Boolean);
+          setBanner([], warnings);
+          toast(warnings.length ? `已保存，另有 ${warnings.length} 条提醒` : "已保存，运行时立即生效");
+        } catch (error) {
+          const message = error && error.message ? error.message : String(error);
+          setBanner([message], []);
+          toast(message, true);
+          syncDirty();
+        } finally {
+          state.saving = false;
+          el.save.textContent = "保存";
+          syncDirty();
+        }
+      }
+
+      el.save.addEventListener("click", save);
+      el.reload.addEventListener("click", load);
+      window.addEventListener("beforeunload", (event) => {
+        if (!isDirty()) return undefined;
+        event.preventDefault();
+        event.returnValue = "";
+        return "";
+      });
+
+      (async () => {
+        try {
+          if (api && typeof api.ready === "function") await api.ready();
+        } catch (error) {
+          /* 主题注入失败不影响功能 */
+        }
+        await load();
+      })();
+    </script>
+  </body>
+</html>

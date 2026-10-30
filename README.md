@@ -1,4 +1,4 @@
-# astrbot_plugin_switch_model 1.3.0 —— 自动切换模型 
+# astrbot_plugin_switch_model —— 自动切换模型 
 
 AstrBot 本地插件。当模型调用报错（额度耗尽、限流、鉴权失效等）时，按你配置的顺序自动切换到下一个可用模型，支持三类模型各自设优先级。
 
